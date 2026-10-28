@@ -17,13 +17,27 @@ Tidak ada dependency dan tidak ada `npm install`. Bun membaca `.env` dari root p
 jadi `bun server.mjs`, `npm start`, `npm run cli`, dan `npm run mcp` sama-sama memakai nilai di sana.
 Kalau memanggil `node` langsung, sertakan `--env-file-if-exists=.env`.
 
+## Struktur
+
+```
+src/
+  lib.mjs        inti: prompt, panggilan model, ekstraksi, sanitasi, simpan aset
+  server.mjs     web host + /api/*
+  cli.mjs        gen / refine / list / check
+  mcp.mjs        MCP stdio server
+  test.mjs       12 self-check
+  public/
+    index.html   UI (satu file, tanpa build)
+ecosystem.config.cjs   proses PM2
+```
+
 ## Jalankan
 
 ```bash
-bun server.mjs           # web UI  → http://localhost:5180
-bun cli.mjs --help       # CLI
-bun mcp.mjs              # MCP server di stdio
-bun test.mjs             # 12 self-check, tanpa network
+bun src/server.mjs       # web UI  → http://localhost:5180
+bun src/cli.mjs --help   # CLI
+bun src/mcp.mjs          # MCP server di stdio
+bun src/test.mjs         # 12 self-check, tanpa network
 ```
 
 Alias npm: `npm start`, `npm run cli`, `npm run mcp`, `npm test`.
@@ -37,7 +51,7 @@ pm2 logs svg-gen
 pm2 delete svg-gen
 ```
 
-`ecosystem.config.cjs` menjalankan `server.mjs` dengan `interpreter: 'bun'` dan cwd root proyek,
+`ecosystem.config.cjs` menjalankan `src/server.mjs` dengan `interpreter: 'bun'` dan cwd root proyek,
 autorestart, maksimal 10 restart. Bun membaca `.env` dari cwd, jadi nilai env baru berlaku setelah
 restart. `pm2 save` kalau mau proses ini ikut dipulihkan setelah reboot.
 
@@ -65,12 +79,12 @@ Setiap simpan menulis `<SVG_OUT>/<slug>-<timestamp>.svg`, dan file itu yang jadi
 ## CLI
 
 ```bash
-node cli.mjs gen "ikon roket, gaya flat, dua warna" --size 512
-node cli.mjs gen "pola gelombang" --variants 3 --json
-node cli.mjs refine out/ikon-roket-....svg "stroke lebih tebal, aksen oranye"
-node cli.mjs gen "logo kafe" --stdout > logo.svg
-node cli.mjs list
-node cli.mjs check out/ikon-roket-....svg
+node src/cli.mjs gen "ikon roket, gaya flat, dua warna" --size 512
+node src/cli.mjs gen "pola gelombang" --variants 3 --json
+node src/cli.mjs refine out/ikon-roket-....svg "stroke lebih tebal, aksen oranye"
+node src/cli.mjs gen "logo kafe" --stdout > logo.svg
+node src/cli.mjs list
+node src/cli.mjs check out/ikon-roket-....svg
 ```
 
 Opsi lengkap: `--style flat|line|duotone|pattern|logo|motion`, `--size 512|1024|1920x1080`,
@@ -79,14 +93,14 @@ Keluaran manusia: `✓ out/file.svg  0.8 KB  4745 ms`; peringatan ke stderr, std
 
 ## MCP
 
-`mcp.mjs` bicara JSON-RPC 2.0 newline-delimited di stdio. Tool: `generate_svg`, `refine_svg`,
+`src/mcp.mjs` bicara JSON-RPC 2.0 newline-delimited di stdio. Tool: `generate_svg`, `refine_svg`,
 `save_svg`, `list_svgs`, `read_svg`, `validate_svg`. Semua mengembalikan JSON teks; SVG ikut di
 dalamnya, jadi agent bisa langsung memakainya atau menyimpannya.
 
 Claude Code:
 
 ```bash
-claude mcp add svg-gen -- bun --env-file=/Users/kasjfulkurniawan/Projects/svg-gen/.env /Users/kasjfulkurniawan/Projects/svg-gen/mcp.mjs
+claude mcp add svg-gen -- bun --env-file=/Users/kasjfulkurniawan/Projects/svg-gen/.env /Users/kasjfulkurniawan/Projects/svg-gen/src/mcp.mjs
 ```
 
 `--env-file` ditulis eksplisit karena Bun hanya memuat `.env` dari cwd, sedangkan klien MCP kerap
@@ -99,7 +113,7 @@ meluncurkan proses dari direktori lain. Klien lain (Cursor, omp, Cline) memakai 
       "command": "bun",
       "args": [
         "--env-file=/Users/kasjfulkurniawan/Projects/svg-gen/.env",
-        "/Users/kasjfulkurniawan/Projects/svg-gen/mcp.mjs"
+        "/Users/kasjfulkurniawan/Projects/svg-gen/src/mcp.mjs"
       ]
     }
   }

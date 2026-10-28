@@ -2,8 +2,9 @@ import { readFile, writeFile, readdir, stat, mkdir } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const ROOT = dirname(fileURLToPath(import.meta.url));
-export const OUT_DIR = resolve(ROOT, process.env.SVG_OUT || 'out');
+export const ROOT = dirname(fileURLToPath(import.meta.url));          // src/
+export const PROJECT = resolve(ROOT, '..');                           // repo root, where .env and assets live
+export const OUT_DIR = resolve(PROJECT, process.env.SVG_OUT || 'out');
 export const BASE = (process.env.OPENAI_BASE_URL || 'http://localhost:20128/v1').replace(/\/$/, '');
 export const KEY = process.env.OPENAI_API_KEY || '';
 export const MODEL = process.env.MODEL || 'kn-b/deepseek-v4-1-flash';

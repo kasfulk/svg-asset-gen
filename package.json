@@ -6,12 +6,12 @@
   "type": "module",
   "description": "Generate SVG assets from a prompt with a local OpenAI-compatible text model (web UI, CLI, MCP server)",
   "bin": {
-    "svg-gen": "./cli.mjs"
+    "svg-gen": "./src/cli.mjs"
   },
   "scripts": {
-    "start": "bun server.mjs",
-    "cli": "bun cli.mjs",
-    "mcp": "bun mcp.mjs",
-    "test": "bun test.mjs"
+    "start": "node src/server.mjs",
+    "cli": "node src/cli.mjs",
+    "mcp": "node src/mcp.mjs",
+    "test": "node src/test.mjs"
   }
 }

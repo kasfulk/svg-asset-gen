@@ -3,7 +3,7 @@
 module.exports = {
   apps: [{
     name: 'svg-gen',
-    script: 'server.mjs',
+    script: 'src/server.mjs',
     interpreter: 'bun',
     cwd: __dirname,
     exec_mode: 'fork',
