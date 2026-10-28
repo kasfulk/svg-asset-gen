@@ -1,0 +1,17 @@
+{
+  "name": "svg-gen",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Generate SVG assets from a prompt with a local OpenAI-compatible text model (web UI, CLI, MCP server)",
+  "bin": {
+    "svg-gen": "./cli.mjs"
+  },
+  "scripts": {
+    "start": "bun server.mjs",
+    "cli": "bun cli.mjs",
+    "mcp": "bun mcp.mjs",
+    "test": "bun test.mjs"
+  }
+}

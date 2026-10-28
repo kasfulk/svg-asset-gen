@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>svg-gen · aset vektor dari teks</title>
+<style>
+  :root{
+    --bg:#0d0d0f; --panel:#141417; --panel-2:#1b1b1f; --line:#27272d;
+    --fg:#e9e7e2; --muted:#8d8b86; --accent:#ff8a3d; --accent-ink:#1a0f07;
+    --ok:#5ad18a; --warn:#e3b341; --err:#ff6f6f;
+    --radius:6px; --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--fg); font:14px/1.45 var(--sans);
+    display:grid; grid-template-rows:auto 1fr; height:100dvh; overflow:hidden;
+  }
+  button,input,textarea,select{font:inherit; color:inherit}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+
+  header{
+    display:flex; align-items:center; gap:16px; padding:10px 16px;
+    border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .brand{display:flex; align-items:baseline; gap:8px; font-family:var(--mono); font-size:13px; letter-spacing:.02em}
+  .brand b{font-weight:600}
+  .brand span{color:var(--muted); font-size:11px}
+  .conn{display:flex; align-items:center; gap:7px; margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); min-width:0}
+  .conn .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+  .conn[data-state=ok] .dot{background:var(--ok)}
+  .conn[data-state=bad] .dot{background:var(--err)}
+  .conn .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .asset-count{font-family:var(--mono); font-size:11px; color:var(--muted); border-left:1px solid var(--line); padding-left:14px}
+
+  main{display:grid; grid-template-columns:338px minmax(0,1fr) 372px; min-height:0}
+  .rail,.inspector{overflow-y:auto; background:var(--panel); min-height:0}
+  .rail{border-right:1px solid var(--line); padding:14px}
+  .inspector{border-left:1px solid var(--line); display:flex; flex-direction:column; gap:12px; padding:14px}
+
+  label,.lab{display:block; font-size:11px; color:var(--muted); margin:0 0 5px}
+  .field{margin-bottom:12px}
+  textarea,input[type=text],select{
+    width:100%; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:var(--radius); padding:8px 10px; resize:vertical;
+  }
+  textarea:focus,input[type=text]:focus,select:focus{border-color:#3b3b44}
+  ::placeholder{color:#66645f}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+
+  .seg{display:flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; width:fit-content}
+  .seg button{
+    background:transparent; border:0; padding:0 14px; height:34px; cursor:pointer;
+    font-family:var(--mono); font-size:12px; color:var(--muted); min-width:40px;
+  }
+  .seg button + button{border-left:1px solid var(--line)}
+  .seg button[aria-pressed=true]{background:var(--panel-2); color:var(--fg)}
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    height:40px; padding:0 14px; border-radius:var(--radius); cursor:pointer;
+    border:1px solid var(--line); background:var(--panel-2); color:var(--fg);
+    transition:background .12s, border-color .12s, color .12s;
+  }
+  .btn:hover{background:#232329; border-color:#35353d}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:600; width:100%}
+  .btn.primary:hover{background:#ffa063}
+  .btn kbd{font-family:var(--mono); font-size:10px; opacity:.6; border:1px solid currentColor; border-radius:3px; padding:1px 4px}
+  .btn.wide{width:100%}
+
+  .status{font-family:var(--mono); font-size:11px; color:var(--muted); min-height:16px; margin-top:8px}
+  .status[data-kind=err]{color:var(--err)}
+  .status[data-kind=ok]{color:var(--ok)}
+
+  .hint{font-size:11px; color:var(--muted); margin:6px 0 0}
+  hr{border:0; border-top:1px solid var(--line); margin:16px 0}
+  details summary{cursor:pointer; font-size:11px; color:var(--muted); margin-bottom:8px}
+  details summary:hover{color:var(--fg)}
+
+  .stage-wrap{display:grid; grid-template-rows:minmax(0,1fr) auto auto; gap:10px; padding:14px; min-height:0}
+  .stage{
+    position:relative; min-height:0; border:1px solid var(--line); border-radius:var(--radius);
+    display:grid; place-items:center; padding:22px; overflow:hidden;
+    background-color:#17171a;
+    background-image:repeating-conic-gradient(#1d1d21 0% 25%, #161619 0% 50%);
+    background-size:18px 18px;
+  }
+  .stage[data-bg=dark]{background-image:none; background-color:#0a0a0b}
+  .stage[data-bg=light]{background-image:repeating-conic-gradient(#ffffff 0% 25%, #e8e8e6 0% 50%); background-size:18px 18px}
+  .stage img{max-width:100%; max-height:100%; width:auto; height:auto; filter:drop-shadow(0 2px 10px rgba(0,0,0,.35))}
+  .stage[data-bg=dark] img{filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}
+
+  .stage-msg{
+    display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
+    max-width:38ch; color:var(--muted); font-size:13px;
+  }
+  .stage-msg strong{color:var(--fg); font-weight:600; font-size:14px}
+  .stage-msg kbd{font-family:var(--mono); font-size:11px; border:1px solid var(--line); border-radius:3px; padding:1px 5px; background:var(--panel)}
+  .stage-msg .err{color:var(--err)}
+  .spinner{
+    width:22px; height:22px; border-radius:50%; border:2px solid #33333a; border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .stage-bar{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .bg-toggle{display:flex; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .bg-toggle button{
+    background:transparent; border:0; height:30px; padding:0 10px; cursor:pointer;
+    font-size:11px; color:var(--muted);
+  }
+  .bg-toggle button + button{border-left:1px solid var(--line)}
+  .bg-toggle button[aria-pressed=true]{background:var(--panel-2); color:var(--fg)}
+  .meta{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end}
+
+  .variants{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px}
+  .variant{
+    flex:none; width:64px; height:64px; padding:5px; border:1px solid var(--line); border-radius:var(--radius);
+    background-color:#17171a; cursor:pointer; display:grid; place-items:center;
+    background-image:repeating-conic-gradient(#1d1d21 0% 25%, #161619 0% 50%); background-size:12px 12px;
+  }
+  .variant[aria-pressed=true]{border-color:var(--accent)}
+  .variant img{max-width:100%; max-height:100%}
+
+  .pane{background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .pane-head{
+    display:flex; align-items:center; gap:8px; padding:7px 10px; border-bottom:1px solid var(--line);
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+  }
+  .pane-head .right{margin-left:auto; display:flex; align-items:center; gap:8px}
+  .badge{font-family:var(--mono); font-size:10px; padding:1px 5px; border-radius:3px; border:1px solid var(--line)}
+  .badge[data-kind=ok]{color:var(--ok); border-color:#224a33}
+  .badge[data-kind=warn]{color:var(--warn); border-color:#4a3f22}
+  .badge[data-kind=err]{color:var(--err); border-color:#4a2626}
+  .icon-btn{background:transparent; border:0; color:var(--muted); cursor:pointer; padding:2px 4px; font-family:var(--mono)}
+  .icon-btn:hover{color:var(--fg)}
+  .src-err{
+    font-family:var(--mono); font-size:10.5px; line-height:1.4; color:var(--err);
+    padding:6px 10px; border-bottom:1px solid var(--line); background:#1d1417;
+  }
+  #source{
+    border:0; border-radius:0; background:transparent; font-family:var(--mono); font-size:11.5px;
+    line-height:1.5; min-height:190px; max-height:36vh; padding:10px; resize:vertical;
+  }
+  #source:focus{outline:none}
+  .actions{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .actions .btn{height:36px; font-size:12px}
+  .actions .btn.primary{width:auto; font-weight:600}
+
+  .library{flex:1; min-height:180px; display:flex; flex-direction:column}
+  #libList{list-style:none; margin:0; padding:6px; overflow-y:auto; flex:1; min-height:0}
+  .lib-item{
+    display:flex; align-items:center; gap:8px; width:100%; padding:5px; border:0; border-radius:4px;
+    background:transparent; cursor:pointer; text-align:left;
+  }
+  .lib-item:hover{background:#232329}
+  .lib-item img{
+    width:34px; height:34px; flex:none; object-fit:contain; border-radius:3px;
+    background-image:repeating-conic-gradient(#1d1d21 0% 25%, #161619 0% 50%); background-size:10px 10px;
+  }
+  .lib-name{font-family:var(--mono); font-size:10.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .lib-size{font-family:var(--mono); font-size:10px; color:var(--muted); margin-left:auto; flex:none}
+  .lib-empty{padding:12px 8px; font-size:12px; color:var(--muted)}
+
+  #toast{
+    position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:20;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius);
+    padding:8px 14px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.5); max-width:80vw;
+  }
+  #toast[data-kind=err]{border-color:#5a2a2a; color:var(--err)}
+  [hidden]{display:none !important}
+
+  @media (max-width:1080px){
+    body{height:auto; overflow:auto; grid-template-rows:auto auto}
+    header{flex-wrap:wrap; row-gap:4px}
+    .brand span{display:none}
+    .conn{margin-left:0; flex:1 1 100%}
+    .asset-count{display:none}
+    main{grid-template-columns:1fr}
+    .rail,.inspector,.row2>*,.field{min-width:0}
+    select{min-width:0; text-overflow:ellipsis}
+    .stage-wrap{order:1; height:min(72vh,600px)}
+    .rail{order:2; border-right:0; border-top:1px solid var(--line)}
+    .inspector{order:3; border-left:0; border-top:1px solid var(--line); overflow:visible}
+    .btn,.seg button,.bg-toggle button{min-height:44px}
+    #source{max-height:none; min-height:160px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>svg-gen</b><span>aset vektor dari teks</span></div>
+  <div class="conn" id="conn" data-state="idle" title="Memeriksa endpoint">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="txt" id="connText">memeriksa endpoint…</span>
+  </div>
+  <div class="asset-count" id="assetCount">0 aset</div>
+</header>
+
+<main>
+  <section class="rail" aria-label="Prompt">
+    <div class="field">
+      <label for="prompt">Deskripsi aset</label>
+      <textarea id="prompt" rows="5" placeholder="Contoh: ikon roket lepas landas, gaya flat, sudut 45 derajat"></textarea>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="style">Gaya</label>
+        <select id="style">
+          <option value="flat">Flat vector</option>
+          <option value="line">Ikon garis</option>
+          <option value="duotone">Duotone ilustrasi</option>
+          <option value="pattern">Pola geometris</option>
+          <option value="logo">Logo mark</option>
+          <option value="motion">Siap animasi</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="size">Kanvas</label>
+        <select id="size">
+          <option value="512">512 × 512</option>
+          <option value="1024">1024 × 1024</option>
+          <option value="1080">1080 × 1080</option>
+          <option value="1920x1080">1920 × 1080</option>
+          <option value="1080x1920">1080 × 1920</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="palette">Palet (opsional)</label>
+      <input id="palette" type="text" placeholder="#0F172A #FF6B35">
+    </div>
+
+    <div class="field">
+      <span class="lab">Varian</span>
+      <div class="seg" id="vseg" role="group" aria-label="Jumlah varian">
+        <button type="button" data-n="1" aria-pressed="true">1</button>
+        <button type="button" data-n="2" aria-pressed="false">2</button>
+        <button type="button" data-n="3" aria-pressed="false">3</button>
+        <button type="button" data-n="4" aria-pressed="false">4</button>
+      </div>
+    </div>
+
+    <button class="btn primary" id="generate" type="button"><span id="genLabel">Generate</span> <kbd>⌘↵</kbd></button>
+    <div class="status" id="status" aria-live="polite"></div>
+
+    <details>
+      <summary>Koneksi model</summary>
+      <div class="field">
+        <label for="model">Model</label>
+        <input id="model" type="text" placeholder="kn-b/deepseek-v4-1-flash" autocomplete="off">
+      </div>
+      <p class="hint">Base URL dari env <code>OPENAI_BASE_URL</code>. Kosongkan model untuk memakai default server.</p>
+    </details>
+
+    <hr>
+
+    <div class="field">
+      <label for="refine">Revisi aset terakhir</label>
+      <textarea id="refine" rows="2" placeholder="Contoh: stroke lebih tebal, tambahkan bayangan bawah"></textarea>
+    </div>
+    <button class="btn wide" id="refineBtn" type="button" disabled>Terapkan revisi</button>
+    <p class="hint">Revisi mengirim aset terpilih sebagai konteks percakapan.</p>
+  </section>
+
+  <section class="stage-wrap" aria-label="Pratinjau">
+    <div class="stage" id="stage" data-bg="alpha">
+      <img id="preview" alt="Pratinjau aset SVG" hidden>
+      <div class="stage-msg" id="stageEmpty">
+        <strong>Belum ada aset</strong>
+        <span>Tulis deskripsi aset, lalu tekan <kbd>⌘↵</kbd> atau tombol Generate.</span>
+      </div>
+      <div class="stage-msg" id="stageLoading" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Model sedang menggambar… <span id="elapsed" style="font-family:var(--mono)">0.0s</span></span>
+      </div>
+      <div class="stage-msg" id="stageError" hidden>
+        <strong class="err">Gagal</strong>
+        <span id="errMsg"></span>
+        <button class="btn" id="retry" type="button">Coba lagi</button>
+      </div>
+    </div>
+
+    <div class="stage-bar">
+      <div class="bg-toggle" id="bgtoggle" role="group" aria-label="Latar pratinjau">
+        <button type="button" data-bg="alpha" aria-pressed="true">Alpha</button>
+        <button type="button" data-bg="dark" aria-pressed="false">Gelap</button>
+        <button type="button" data-bg="light" aria-pressed="false">Terang</button>
+      </div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div class="variants" id="variants" hidden aria-label="Varian"></div>
+  </section>
+
+  <aside class="inspector" aria-label="Sumber dan aset">
+    <div class="pane">
+      <div class="pane-head">
+        <span>sumber svg</span>
+        <span class="right"><span class="badge" id="srcState" role="status" aria-live="polite">kosong</span></span>
+      </div>
+      <div class="src-err" id="srcErr" hidden></div>
+      <textarea id="source" spellcheck="false" placeholder="SVG hasil generate muncul di sini, bisa diedit langsung."></textarea>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="save" type="button" disabled>Simpan ke out/</button>
+      <button class="btn" id="copy" type="button" disabled>Salin</button>
+      <button class="btn" id="dlSvg" type="button" disabled>Unduh .svg</button>
+      <button class="btn" id="dlPng" type="button" disabled>PNG 2×</button>
+    </div>
+
+    <div class="pane library">
+      <div class="pane-head">
+        <span>aset tersimpan</span>
+        <span class="right"><span id="libCount"></span><button class="icon-btn" id="refreshLib" type="button" title="Muat ulang daftar" aria-label="Muat ulang daftar aset">↻</button></span>
+      </div>
+      <ul id="libList"><li class="lib-empty">Memuat…</li></ul>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" hidden aria-live="polite"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const els = {
+  prompt: $('#prompt'), palette: $('#palette'), style: $('#style'), size: $('#size'),
+  generate: $('#generate'), refine: $('#refine'), refineBtn: $('#refineBtn'),
+  status: $('#status'), stage: $('#stage'), preview: $('#preview'),
+  empty: $('#stageEmpty'), loading: $('#stageLoading'), error: $('#stageError'),
+  errMsg: $('#errMsg'), retry: $('#retry'), meta: $('#meta'), elapsed: $('#elapsed'),
+  variants: $('#variants'), source: $('#source'), srcState: $('#srcState'), srcErr: $('#srcErr'),
+  save: $('#save'), copy: $('#copy'), dlSvg: $('#dlSvg'), dlPng: $('#dlPng'),
+  lib: $('#libList'), libCount: $('#libCount'), refreshLib: $('#refreshLib'),
+  model: $('#model'), conn: $('#conn'), connText: $('#connText'),
+  toast: $('#toast'), assetCount: $('#assetCount'), vseg: $('#vseg'), bgtoggle: $('#bgtoggle'),
+};
+
+const STYLE_HINTS = {
+  flat: 'Gaya: flat vector, bidang warna solid, bentuk tegas, tanpa gradien rumit.',
+  line: 'Gaya: ikon garis, stroke seragam, tanpa isi bidang kecuali aksen kecil.',
+  duotone: 'Gaya: ilustrasi dua warna dengan bentuk organik dan satu gradien halus.',
+  pattern: 'Gaya: pola geometris berulang yang bisa di-tile tanpa elemen dominan tunggal.',
+  logo: 'Gaya: logo mark sederhana, satu ide visual, siluet tegas, tanpa detail kecil.',
+  motion: 'Siap animasi: pecah ke grup ber-id, tambahkan animasi CSS loop halus lewat @keyframes di dalam <style>.',
+};
+
+const state = { svg: '', history: [], variants: [], busy: false, timer: null, t0: 0, lastPrompt: '' };
+
+/* ---------- SVG extraction + sanitize ---------- */
+
+function extractSvg(text) {
+  let t = String(text).trim();
+  t = t.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '');
+  const start = t.indexOf('<svg');
+  if (start < 0) throw new Error('Model tidak mengembalikan elemen <svg>.');
+  const end = t.lastIndexOf('</svg>');
+  if (end < 0) throw new Error('Keluaran terpotong: tidak ada </svg>. Coba lagi atau kecilkan permintaan.');
+  return t.slice(start, end + 6);
+}
+
+function sanitizeSvg(raw) {
+  const doc = new DOMParser().parseFromString(raw, 'image/svg+xml');
+  const perr = doc.querySelector('parsererror');
+  if (perr) {
+    const msg = (perr.textContent || '')
+      .replace(/^\s*This page contains the following errors?:?\s*/i, '')
+      .replace(/Below is a rendering[\s\S]*$/i, '')
+      .replace(/\s+/g, ' ').trim();
+    return { error: 'XML tidak valid: ' + (msg || 'kesalahan parser').slice(0, 180) };
+  }
+  const svg = doc.documentElement;
+  if (!svg || svg.localName !== 'svg') return { error: 'Elemen akar bukan <svg>.' };
+
+  doc.querySelectorAll('script, foreignObject, iframe, object, embed').forEach((n) => n.remove());
+  for (const el of [svg, ...doc.querySelectorAll('*')]) {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on')) el.removeAttribute(attr.name);
+      else if ((name === 'href' || name === 'xlink:href') && !/^(#|data:image\/)/i.test(attr.value.trim())) el.removeAttribute(attr.name);
+      else if (/url\(\s*['"]?(https?:)?\/\//i.test(attr.value)) el.removeAttribute(attr.name);
+    }
+    if (el.localName === 'style') el.textContent = el.textContent.replace(/@import[^;]*;?/gi, '');
+  }
+
+  const clean = new XMLSerializer().serializeToString(svg);
+  const vb = svg.getAttribute('viewBox');
+  const nodes = svg.querySelectorAll('*').length;
+  return { svg: clean, viewBox: vb, warning: !vb, nodes };
+}
+
+/* ---------- render ---------- */
+
+function dataUri(svg) {
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+function showEmpty() {
+  els.preview.hidden = true;
+  els.loading.hidden = true;
+  els.error.hidden = true;
+  els.empty.hidden = false;
+}
+function showLoading() {
+  els.empty.hidden = true;
+  els.error.hidden = true;
+  els.preview.hidden = true;
+  els.loading.hidden = false;
+  state.t0 = Date.now();
+  clearInterval(state.timer);
+  state.timer = setInterval(() => { els.elapsed.textContent = ((Date.now() - state.t0) / 1000).toFixed(1) + 's'; }, 100);
+}
+function stopLoading() { clearInterval(state.timer); els.loading.hidden = true; }
+function showError(msg) {
+  stopLoading();
+  els.preview.hidden = true;
+  els.empty.hidden = true;
+  els.error.hidden = false;
+  els.errMsg.textContent = msg;
+}
+
+function render() {
+  if (!state.svg) return showEmpty();
+  const img = new Image();
+  img.onload = () => {
+    els.empty.hidden = true;
+    els.error.hidden = true;
+    els.preview.src = img.src;
+    els.preview.hidden = false;
+  };
+  img.onerror = () => showError('SVG tidak bisa dirender. Periksa markup di panel sumber.');
+  img.src = dataUri(state.svg);
+
+  const m = state.svg.match(/viewBox\s*=\s*["']([^"']+)["']/i);
+  const kb = (new Blob([state.svg]).size / 1024).toFixed(1);
+  els.meta.textContent = '';
+  const parts = [m ? 'viewBox ' + m[1] : 'tanpa viewBox', kb + ' KB', (state.svg.match(/<[a-zA-Z]/g) || []).length + ' node'];
+  for (const p of parts) { const s = document.createElement('span'); s.textContent = p; els.meta.append(s); }
+}
+
+function setSvg(raw, { fromEditor = false } = {}) {
+  const parsed = sanitizeSvg(raw);
+  if (parsed.error) {
+    els.srcState.textContent = 'tidak valid';
+    els.srcState.dataset.kind = 'err';
+    if (fromEditor) {
+      // mid-typing markup is expected to be broken: keep the last good render, report inline
+      els.srcErr.textContent = parsed.error;
+      els.srcErr.hidden = false;
+      els.srcState.title = parsed.error;
+    } else {
+      showError(parsed.error);
+    }
+    return false;
+  }
+  els.srcErr.hidden = true;
+  els.srcState.title = parsed.warning ? 'tanpa viewBox: aset tidak akan menskalakan dengan bersih' : '';
+  state.svg = parsed.svg;
+  els.source.value = parsed.svg;
+  els.srcState.textContent = parsed.warning ? 'valid · tanpa viewBox' : 'valid';
+  els.srcState.dataset.kind = parsed.warning ? 'warn' : 'ok';
+  for (const b of [els.save, els.copy, els.dlSvg, els.dlPng]) b.disabled = false;
+  els.refineBtn.disabled = false;
+  render();
+  return true;
+}
+
+/* ---------- api ---------- */
+
+async function chat(messages) {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      messages,
+      model: els.model.value.trim() || undefined,
+      max_tokens: 12000,
+    }),
+  });
+  const data = await res.json().catch(() => ({ error: 'respons HTTP ' + res.status }));
+  if (!res.ok) throw new Error(data.error + (data.detail ? ' · ' + String(data.detail).slice(0, 160) : ''));
+  return data;
+}
+
+function dims() {
+  const v = els.size.value;
+  const pair = v.split('x').map(Number);
+  return pair.length === 2 ? { w: pair[0], h: pair[1] } : { w: pair[0], h: pair[0] };
+}
+
+function buildPrompt(text) {
+  const { w, h } = dims();
+  const lines = [
+    text.trim(),
+    'Kanvas ' + w + 'x' + h + ' px, viewBox "0 0 ' + w + ' ' + h + '".',
+    STYLE_HINTS[els.style.value] || STYLE_HINTS.flat,
+  ];
+  if (els.palette.value.trim()) lines.push('Gunakan palet ini: ' + els.palette.value.trim() + '.');
+  lines.push('Latar transparan, tanpa teks kecuali diminta secara eksplisit.');
+  return lines.join('\n');
+}
+
+function variantCount() {
+  return Number(els.vseg.querySelector('[aria-pressed="true"]')?.dataset.n || 1);
+}
+
+/* ---------- generate / refine ---------- */
+
+async function generate() {
+  const text = els.prompt.value.trim();
+  if (!text) { els.prompt.focus(); return notify('Tulis deskripsi aset dulu.', 'err'); }
+  if (state.busy) return;
+
+  const base = buildPrompt(text);
+  const n = variantCount();
+  state.busy = true;
+  setBusy(true);
+  showLoading();
+  els.variants.hidden = true;
+  setStatus('mengirim permintaan…');
+
+  const jobs = Array.from({ length: n }, (_, i) => {
+    const content = n > 1 ? base + '\n\nVarian ' + (i + 1) + ' dari ' + n + ': komposisi yang jelas berbeda dari varian lain.' : base;
+    return chat([{ role: 'user', content }]).then((r) => ({ r, svg: extractSvg(r.content) }));
+  });
+
+  const settled = await Promise.allSettled(jobs);
+  stopLoading();
+  state.busy = false;
+  setBusy(false);
+
+  const ok = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
+  if (!ok.length) {
+    const reason = settled[0]?.reason?.message || 'Model tidak mengembalikan SVG.';
+    showError(reason);
+    setStatus('gagal', 'err');
+    return;
+  }
+
+  state.lastPrompt = text;
+  state.variants = ok.map((v) => v.svg);
+  renderVariants();
+  const first = ok[0];
+  if (setSvg(first.svg)) {
+    state.history = [{ role: 'user', content: base }, { role: 'assistant', content: first.svg }];
+    setStatus(ok[0].r.ms + ' ms · ' + (ok[0].r.usage?.completion_tokens ?? '?') + ' token · ' + (ok[0].r.model || ''), 'ok');
+  }
+  if (settled.some((s) => s.status === 'rejected')) notify(ok.length + ' dari ' + n + ' varian berhasil', 'err');
+}
+
+async function applyRefine() {
+  const instruction = els.refine.value.trim();
+  if (!instruction) return notify('Tulis instruksi revisi dulu.', 'err');
+  if (!state.svg || !state.history.length) return notify('Generate aset dulu sebelum revisi.', 'err');
+  if (state.busy) return;
+
+  state.busy = true;
+  setBusy(true);
+  showLoading();
+  setStatus('menerapkan revisi…');
+  const turn = { role: 'user', content: instruction };
+  state.history.push(turn);
+  try {
+    const r = await chat(state.history);
+    const svg = extractSvg(r.content);
+    stopLoading();
+    if (setSvg(svg)) {
+      state.history.push({ role: 'assistant', content: svg });
+      state.variants = [];
+      els.variants.hidden = true;
+      els.refine.value = '';
+      setStatus(r.ms + ' ms · ' + (r.usage?.completion_tokens ?? '?') + ' token', 'ok');
+    }
+  } catch (e) {
+    state.history.pop();
+    showError(e.message);
+    setStatus('gagal', 'err');
+  } finally {
+    state.busy = false;
+    setBusy(false);
+  }
+}
+
+function setBusy(busy) {
+  els.generate.disabled = busy;
+  els.refineBtn.disabled = busy || !state.svg;
+  $('#genLabel').textContent = busy ? 'Menggambar…' : 'Generate';
+}
+
+function setStatus(msg, kind = '') {
+  els.status.textContent = msg;
+  els.status.dataset.kind = kind;
+}
+
+function renderVariants() {
+  els.variants.textContent = '';
+  if (state.variants.length < 2) { els.variants.hidden = true; return; }
+  els.variants.hidden = false;
+  state.variants.forEach((svg, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'variant';
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.title = 'Varian ' + (i + 1);
+    const img = new Image();
+    img.src = dataUri(svg);
+    img.alt = 'Varian ' + (i + 1);
+    b.append(img);
+    b.onclick = () => {
+      for (const other of els.variants.children) other.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-pressed', 'true');
+      if (setSvg(svg)) {
+        state.history = [
+          { role: 'user', content: buildPrompt(state.lastPrompt) },
+          { role: 'assistant', content: svg },
+        ];
+      }
+    };
+    els.variants.append(b);
+  });
+}
+
+/* ---------- exports ---------- */
+
+function currentName() {
+  const base = (state.lastPrompt || 'asset').replace(/[^a-zA-Z0-9 ]+/g, ' ').trim().slice(0, 40);
+  return base || 'asset';
+}
+
+async function saveAsset() {
+  if (!state.svg) return;
+  els.save.disabled = true;
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ svg: state.svg, name: currentName() }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'gagal menyimpan');
+    notify('Tersimpan: out/' + data.file);
+    loadLibrary();
+  } catch (e) {
+    notify(e.message, 'err');
+  } finally {
+    els.save.disabled = false;
+  }
+}
+
+async function copySvg() {
+  if (!state.svg) return;
+  try {
+    await navigator.clipboard.writeText(state.svg);
+    notify('SVG disalin ke clipboard');
+  } catch {
+    els.source.select();
+    notify('Clipboard diblokir, teks sudah dipilih: tekan ⌘C', 'err');
+  }
+}
+
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function dlSvg() {
+  if (!state.svg) return;
+  download(new Blob([state.svg], { type: 'image/svg+xml' }), currentName().replace(/\s+/g, '-') + '.svg');
+}
+
+function dlPng() {
+  if (!state.svg) return;
+  const m = state.svg.match(/viewBox\s*=\s*["']\s*([-\d.]+)[\s,]+([-\d.]+)[\s,]+([-\d.]+)[\s,]+([-\d.]+)/i);
+  const w = m ? Math.round(Number(m[3])) : dims().w;
+  const h = m ? Math.round(Number(m[4])) : dims().h;
+  const scale = 2;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w * scale; canvas.height = h * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (blob) { download(blob, currentName().replace(/\s+/g, '-') + '@2x.png'); notify('PNG ' + canvas.width + '×' + canvas.height + ' diunduh'); }
+      else notify('PNG gagal dibuat', 'err');
+    }, 'image/png');
+  };
+  img.onerror = () => notify('PNG gagal: SVG tidak bisa diraster', 'err');
+  img.src = dataUri(state.svg);
+}
+
+/* ---------- library ---------- */
+
+function fmtBytes(n) {
+  return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB';
+}
+
+async function loadLibrary() {
+  try {
+    const res = await fetch('/api/assets');
+    const data = await res.json();
+    const list = data.assets || [];
+    els.lib.textContent = '';
+    els.libCount.textContent = list.length ? list.length + ' file' : '';
+    els.assetCount.textContent = list.length + ' aset';
+    if (!list.length) {
+      const li = document.createElement('li');
+      li.className = 'lib-empty';
+      li.textContent = 'Belum ada file di out/. Simpan hasil untuk mulai mengumpulkan aset.';
+      els.lib.append(li);
+      return;
+    }
+    for (const a of list) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'lib-item';
+      btn.title = 'Muat ' + a.file;
+      const img = new Image();
+      img.src = '/out/' + encodeURIComponent(a.file);
+      img.alt = '';
+      img.loading = 'lazy';
+      const name = document.createElement('span');
+      name.className = 'lib-name';
+      name.textContent = a.file;
+      const size = document.createElement('span');
+      size.className = 'lib-size';
+      size.textContent = fmtBytes(a.bytes);
+      btn.append(img, name, size);
+      btn.onclick = async () => {
+        try {
+          const r = await fetch('/out/' + encodeURIComponent(a.file));
+          if (!r.ok) throw new Error('file tidak terbaca');
+          setSvg(await r.text());
+          state.history = [];
+          state.variants = [];
+          els.variants.hidden = true;
+          els.refineBtn.disabled = true;
+          notify('Dimuat: ' + a.file);
+        } catch (e) { notify(e.message, 'err'); }
+      };
+      li.append(btn);
+      els.lib.append(li);
+    }
+  } catch (e) {
+    els.lib.textContent = '';
+    const li = document.createElement('li');
+    li.className = 'lib-empty';
+    li.textContent = 'Gagal memuat daftar aset: ' + e.message;
+    els.lib.append(li);
+  }
+}
+
+/* ---------- misc ---------- */
+
+let toastTimer;
+function notify(msg, kind = 'ok') {
+  els.toast.textContent = msg;
+  els.toast.dataset.kind = kind;
+  els.toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3600);
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const j = await r.json();
+    if (j.ok) {
+      els.conn.dataset.state = 'ok';
+      const short = j.base.replace(/^https?:\/\//, '');
+      els.connText.textContent = short + ' · ' + (j.hasModel === false ? 'model tidak terdaftar' : j.model);
+      els.conn.title = j.base + ' · ' + (j.models ?? 0) + ' model';
+      if (j.hasModel === false) els.conn.dataset.state = 'bad';
+      if (!els.model.value) els.model.placeholder = j.model;
+    } else {
+      els.conn.dataset.state = 'bad';
+      els.connText.textContent = 'endpoint tidak merespons · ' + j.base.replace(/^https?:\/\//, '');
+      els.conn.title = j.error || '';
+    }
+  } catch (e) {
+    els.conn.dataset.state = 'bad';
+    els.connText.textContent = 'server lokal tidak merespons';
+    els.conn.title = e.message;
+  }
+}
+
+let editTimer;
+els.source.addEventListener('input', () => {
+  clearTimeout(editTimer);
+  editTimer = setTimeout(() => {
+    const value = els.source.value.trim();
+    if (!value) {
+      state.svg = '';
+      els.srcState.textContent = 'kosong';
+      els.srcState.dataset.kind = '';
+      els.srcErr.hidden = true;
+      for (const b of [els.save, els.copy, els.dlSvg, els.dlPng]) b.disabled = true;
+      showEmpty();
+      return;
+    }
+    if (setSvg(value, { fromEditor: true })) {
+      // keep refinement context on the hand-edited version, not the stale model output
+      const last = state.history[state.history.length - 1];
+      if (last && last.role === 'assistant') last.content = state.svg;
+    }
+  }, 350);
+});
+
+els.generate.addEventListener('click', generate);
+els.refineBtn.addEventListener('click', applyRefine);
+els.save.addEventListener('click', saveAsset);
+els.copy.addEventListener('click', copySvg);
+els.dlSvg.addEventListener('click', dlSvg);
+els.dlPng.addEventListener('click', dlPng);
+els.refreshLib.addEventListener('click', loadLibrary);
+els.retry.addEventListener('click', () => (state.history.length ? applyRefine() : generate()));
+
+els.vseg.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-n]');
+  if (!btn) return;
+  for (const b of els.vseg.children) b.setAttribute('aria-pressed', String(b === btn));
+});
+
+els.bgtoggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-bg]');
+  if (!btn) return;
+  for (const b of els.bgtoggle.children) b.setAttribute('aria-pressed', String(b === btn));
+  els.stage.dataset.bg = btn.dataset.bg;
+});
+
+els.model.addEventListener('change', () => {
+  const v = els.model.value.trim();
+  if (v) localStorage.setItem('svgGen.model', v); else localStorage.removeItem('svgGen.model');
+});
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (document.activeElement === els.refine) applyRefine(); else generate();
+  }
+});
+
+els.model.value = localStorage.getItem('svgGen.model') || '';
+showEmpty();
+loadLibrary();
+checkHealth();
+</script>
+</body>
+</html>
